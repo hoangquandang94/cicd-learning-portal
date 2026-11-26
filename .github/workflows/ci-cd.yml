@@ -1,0 +1,111 @@
+name: Production CI/CD Pipeline (.NET 10 MVC + Docker)
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ===================================================================
+  # GIAI ĐOẠN 1: CI - KIỂM TRA CHẤT LƯỢNG CODE, BẢO MẬT & UNIT TEST
+  # ===================================================================
+  ci-build-and-test:
+    name: "1. CI: Build, Security Scan & Unit Test"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 LTS SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore Dependencies
+        run: dotnet restore
+
+      - name: Security Check - Quét lỗ hổng bảo mật thư viện NuGet
+        run: dotnet list package --vulnerable --include-transitive
+
+      - name: Build Solution (Release Mode)
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Run xUnit Automated Tests
+        run: dotnet test --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=test-results.trx"
+
+  # ===================================================================
+  # GIAI ĐOẠN 2: PACKAGE - ĐÓNG GÓI DOCKER IMAGE & PUSH LÊN GHCR
+  # (Chỉ chạy khi code đã Pass Giai đoạn 1 và được đẩy vào nhánh main)
+  # ===================================================================
+  docker-package-and-push:
+    name: "2. Package: Build & Push Docker Image (GHCR)"
+    needs: ci-build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry (ghcr.io)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Docker Image with Version Tags
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          VERSION_TAG="1.0.${{ github.run_number }}-${SHORT_SHA}"
+          IMAGE_URI="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          IMAGE_URI=$(echo "$IMAGE_URI" | tr '[:upper:]' '[:lower:]')
+
+          docker build \
+            --build-arg APP_VERSION="${VERSION_TAG}" \
+            -t "${IMAGE_URI}:${VERSION_TAG}" \
+            -t "${IMAGE_URI}:latest" .
+
+          docker push "${IMAGE_URI}:${VERSION_TAG}"
+          docker push "${IMAGE_URI}:latest"
+
+  # ===================================================================
+  # GIAI ĐOẠN 3: CD - DEPLOY TỰ ĐỘNG VỀ SERVER/LOCAL & SMOKE TEST
+  # (Chạy khi bạn đã cài đặt Self-Hosted Runner trên máy nhận Deploy)
+  # ===================================================================
+  cd-deploy-production:
+    name: "3. CD: Deploy Docker & Smoke Test (/health)"
+    needs: docker-package-and-push
+    # Lưu ý: Bật biến môi trường ENABLE_SELF_HOSTED_CD = 'true' trong GitHub Repo Variables sau khi cài Runner
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.ENABLE_SELF_HOSTED_CD == 'true'
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Deploy Container & Verify Health Check (Auto-Rollback on Failure)
+        shell: pwsh
+        run: |
+          $shortSha = "${{ github.sha }}".Substring(0, 7)
+          $versionTag = "1.0.${{ github.run_number }}-$shortSha"
+          ./scripts/deploy-and-verify.ps1 -VersionTag $versionTag

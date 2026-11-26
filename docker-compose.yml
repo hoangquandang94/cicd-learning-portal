@@ -1,0 +1,15 @@
+services:
+  cicd-portal-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-1.0.0-docker}
+    image: ${IMAGE_NAME:-cicd-learning-portal:latest}
+    container_name: cicd-learning-portal
+    ports:
+      - "5080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - APP_VERSION=${APP_VERSION:-1.0.0-docker}
+    restart: unless-stopped

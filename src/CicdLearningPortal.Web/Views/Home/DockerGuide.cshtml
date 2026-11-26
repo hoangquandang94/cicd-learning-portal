@@ -1,0 +1,119 @@
+@model CicdLearningPortal.Web.Models.LearningModule
+@{
+    ViewData["Title"] = "Cẩm Nang Docker Thực Chiến Cho Lập Trình Viên .NET";
+}
+
+<div class="card border-0 shadow-sm mb-4 bg-info bg-opacity-10 border-start border-4 border-info">
+    <div class="card-body p-4">
+        <span class="badge bg-info text-dark fw-bold mb-2">DÀNH CHO NGƯỜI MỚI BẮT ĐẦU TỪ IIS</span>
+        <h1 class="h3 fw-bold mb-2">🐳 Cẩm Nang Docker Thực Chiến Cho Lập Trình Viên .NET MVC</h1>
+        <p class="mb-0 text-secondary">
+            Nếu bạn đã quen với việc publish code ra thư mục rồi trỏ IIS (Internet Information Services) vào đó,
+            trang này sẽ giúp bạn hiểu Docker một cách trực quan nhất thông qua sự tương đồng với IIS.
+        </p>
+    </div>
+</div>
+
+<!-- Bảng đối chiếu trực quan IIS vs Docker -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+        <h2 class="h5 fw-bold mb-3">1. Bảng Đối Chiếu Tư Duy: Từ IIS sang Docker</h2>
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle small mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width: 22%;">Khái niệm</th>
+                        <th style="width: 39%;">Cách truyền thống (Windows + IIS)</th>
+                        <th style="width: 39%;">Cách hiện đại (Docker Container)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="fw-bold">Môi trường chạy</td>
+                        <td>Phải cài tay <code>.NET Hosting Bundle</code> lên máy chủ Windows.</td>
+                        <td>Có sẵn bên trong Image <code>mcr.microsoft.com/dotnet/aspnet:10.0</code>.</td>
+                    </tr>
+                    <tr>
+                        <td class="fw-bold">Bản đóng gói</td>
+                        <td>Thư mục chứa các file <code>.dll</code>, <code>appsettings.json</code>, <code>wwwroot</code>.</td>
+                        <td><strong>Docker Image</strong> (gộp cả thư mục publish + hệ điều hành Linux tối giản + .NET Runtime).</td>
+                    </tr>
+                    <tr>
+                        <td class="fw-bold">Tiến trình chạy Web</td>
+                        <td><strong>IIS Application Pool</strong> + Website (`w3wp.exe`).</td>
+                        <td><strong>Docker Container</strong> chạy độc lập, cô lập hoàn toàn tài nguyên.</td>
+                    </tr>
+                    <tr>
+                        <td class="fw-bold">Cấu hình Port &amp; Biến môi trường</td>
+                        <td>Sửa Site Bindings trong IIS Manager và sửa file <code>web.config</code> / <code>appsettings.json</code>.</td>
+                        <td>Khai báo gọn trong file <code>docker-compose.yml</code> (<code>ports: "5080:8080"</code>, <code>environment:</code>).</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Giải thích từng dòng Dockerfile Multi-stage -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <h2 class="h5 fw-bold mb-3">2. Giải Phẫu File <code>Dockerfile</code> Chuẩn Production</h2>
+                <p class="small text-muted">
+                    Chúng ta dùng kỹ thuật <strong>Multi-stage Build (2 giai đoạn)</strong>: Dùng bộ SDK đầy đủ để biên dịch code, sau đó chỉ lấy kết quả biên dịch bỏ vào bộ Runtime siêu nhẹ.
+                </p>
+                <pre class="bg-dark text-info p-3 rounded small mb-0"><code># GIAI ĐOẠN 1: BUILD (Dùng Image SDK có trình biên dịch)
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Copy file csproj trước để tận dụng Docker Layer Cache
+COPY ["src/CicdLearningPortal.Web/CicdLearningPortal.Web.csproj", "src/CicdLearningPortal.Web/"]
+RUN dotnet restore "src/CicdLearningPortal.Web/CicdLearningPortal.Web.csproj"
+
+# Copy toàn bộ source code và publish ra thư mục /app/publish
+COPY . .
+RUN dotnet publish "src/CicdLearningPortal.Web/CicdLearningPortal.Web.csproj" \
+    -c Release -o /app/publish /p:UseAppHost=false
+
+# GIAI ĐOẠN 2: RUNTIME (Chỉ chứa ASP.NET Runtime nhẹ & bảo mật)
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+EXPOSE 8080
+COPY --from=build /app/publish .
+USER $APP_UID
+ENTRYPOINT ["dotnet", "CicdLearningPortal.Web.dll"]</code></pre>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <h2 class="h5 fw-bold mb-3">3. File <code>docker-compose.yml</code>: Khởi Chạy Chỉ Với 1 Lệnh</h2>
+                <p class="small text-muted">
+                    Thay vì phải gõ lệnh <code>docker run</code> dài dòng với nhiều tham số, bạn lưu toàn bộ cấu hình cổng, biến môi trường, chế độ tự khởi động lại vào <code>docker-compose.yml</code>:
+                </p>
+                <pre class="bg-dark text-warning p-3 rounded small mb-3"><code>services:
+  cicd-portal-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cicd-learning-portal:latest
+    container_name: cicd-learning-portal
+    ports:
+      - "5080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - APP_VERSION=1.0.0-docker
+    restart: unless-stopped</code></pre>
+
+                <div class="alert alert-info small mb-0">
+                    <strong>Lệnh thần thánh để bật/cập nhật web bằng Docker Compose:</strong>
+                    <pre class="bg-dark text-white p-2 rounded mt-2 mb-1"><code>docker compose up -d --build</code></pre>
+                    <span>Sau khi chạy xong, mở ngay <code>http://localhost:5080</code> là thấy trang web chạy bên trong Docker Container!</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

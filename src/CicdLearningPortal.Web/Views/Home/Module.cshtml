@@ -1,0 +1,135 @@
+@model CicdLearningPortal.Web.Models.LearningModule
+@{
+    ViewData["Title"] = Model.Title;
+    var allModules = ViewBag.AllModules as List<CicdLearningPortal.Web.Models.LearningModule> ?? new();
+    var prevModule = allModules.FirstOrDefault(m => m.StepNumber == Model.StepNumber - 1);
+    var nextModule = allModules.FirstOrDefault(m => m.StepNumber == Model.StepNumber + 1);
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-action="Index">Lộ trình 6 Bước</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Bước @Model.StepNumber: @Model.BadgeText</li>
+    </ol>
+</nav>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+        <span class="badge bg-@Model.BadgeColor mb-2">Bước @Model.StepNumber / @allModules.Count - @Model.BadgeText</span>
+        <h1 class="h3 fw-bold mb-2">@Model.Title</h1>
+        <p class="lead text-muted mb-3">@Model.Subtitle</p>
+        <p class="mb-3">@Model.Summary</p>
+
+        <div class="alert alert-secondary mb-0">
+            <h2 class="h6 fw-bold mb-1">💡 Sự thay đổi tư duy: Từ Bonobo + Jenkins + IIS sang DevOps hiện đại</h2>
+            <p class="mb-0 small">@Model.OldWayVsNewWay</p>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Cột trái: Kiến thức cốt lõi & Lệnh thực hành -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h2 class="h5 fw-bold mb-3">🎯 Các khái niệm cốt lõi cần nắm vững</h2>
+                <ul class="list-group list-group-flush">
+                    @foreach (var concept in Model.KeyConcepts)
+                    {
+                        <li class="list-group-item px-0 py-2">
+                            <span class="text-primary fw-bold me-2">&check;</span>@concept
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h2 class="h5 fw-bold mb-3">💻 Câu lệnh &amp; Cấu hình Thực hành</h2>
+                @foreach (var cmd in Model.PracticalCommands)
+                {
+                    <div class="mb-4">
+                        <h3 class="h6 fw-bold text-dark">@cmd.Title</h3>
+                        <pre class="bg-dark text-info p-3 rounded small mb-2"><code>@cmd.Code</code></pre>
+                        <p class="text-muted small mb-0">@cmd.Explanation</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Cột phải: Checklist nghiệm thu Production & Điều hướng -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h2 class="h5 fw-bold mb-3">✅ Checklist Nghiệm thu Production</h2>
+                <p class="text-muted small">Đánh dấu các mục bạn đã hiểu và thực hành xong ở bước này:</p>
+                @for (int i = 0; i < Model.ProductionChecklist.Count; i++)
+                {
+                    var checkId = $"chk_{Model.Id}_{i}";
+                    <div class="form-check mb-2">
+                        <input class="form-check-input cicd-checklist-item" type="checkbox" id="@checkId" data-storage-key="@checkId">
+                        <label class="form-check-label small" for="@checkId">
+                            @Model.ProductionChecklist[i]
+                        </label>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="h6 fw-bold mb-3">Danh mục 6 Bước</h2>
+                <div class="list-group list-group-flush small">
+                    @foreach (var item in allModules)
+                    {
+                        var activeClass = item.Id == Model.Id ? "active fw-bold" : "";
+                        <a asp-action="Module" asp-route-id="@item.Id"
+                           class="list-group-item list-group-item-action @activeClass">
+                            Bước @item.StepNumber: @item.BadgeText
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between mt-4">
+    @if (prevModule is not null)
+    {
+        <a asp-action="Module" asp-route-id="@prevModule.Id" class="btn btn-outline-secondary">
+            &larr; Bước @prevModule.StepNumber: @prevModule.BadgeText
+        </a>
+    }
+    else
+    {
+        <a asp-action="Index" class="btn btn-outline-secondary">&larr; Quay lại Trang chủ</a>
+    }
+
+    @if (nextModule is not null)
+    {
+        <a asp-action="Module" asp-route-id="@nextModule.Id" class="btn btn-primary fw-semibold">
+            Tiếp theo: Bước @nextModule.StepNumber (@nextModule.BadgeText) &rarr;
+        </a>
+    }
+    else
+    {
+        <a asp-action="Index" class="btn btn-success fw-semibold">Hoàn thành Lộ trình &rarr;</a>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.cicd-checklist-item').forEach(function (checkbox) {
+            var key = checkbox.getAttribute('data-storage-key');
+            if (localStorage.getItem(key) === 'true') {
+                checkbox.checked = true;
+            }
+            checkbox.addEventListener('change', function () {
+                localStorage.setItem(key, checkbox.checked ? 'true' : 'false');
+            });
+        });
+    </script>
+}

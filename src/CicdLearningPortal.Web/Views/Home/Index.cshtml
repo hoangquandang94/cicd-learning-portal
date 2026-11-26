@@ -1,0 +1,137 @@
+@model CicdLearningPortal.Web.Models.PortalDashboardViewModel
+@{
+    ViewData["Title"] = "Lộ Trình Học & Thực Hành CI/CD + Docker";
+}
+
+<!-- Bảng Telemetry Trạng thái Môi trường Thực tế (Quan sát kết quả Deploy) -->
+<div class="card border-0 shadow-sm mb-4 bg-dark text-white">
+    <div class="card-body p-4">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    @if (Model.RuntimeInfo.IsRunningInContainer)
+                    {
+                        <span class="badge bg-info text-dark fw-bold">🐳 ĐANG CHẠY TRONG DOCKER CONTAINER</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-warning text-dark fw-bold">💻 ĐANG CHẠY TRỰC TIẾP TRÊN MÁY HOST (LOCAL)</span>
+                    }
+                    <span class="badge bg-secondary">Môi trường: @Model.RuntimeInfo.EnvironmentName</span>
+                    <span class="badge bg-success">Version: @Model.RuntimeInfo.AppVersion</span>
+                </div>
+                <h1 class="h3 fw-bold mb-2">Cổng Tài Liệu & Thực Hành CI/CD + Docker Thực Chiến</h1>
+                <p class="text-white-50 mb-0">
+                    Chào mừng bạn! Chính ứng dụng MVC này là <strong>sản phẩm thực hành xuyên suốt</strong> của chúng ta:
+                    từ viết Unit Test, đóng gói Docker Image, đẩy lên GitHub Actions, quét bảo mật cho tới tự động Deploy &amp; Rollback.
+                </p>
+            </div>
+            <div class="col-lg-4 mt-3 mt-lg-0">
+                <div class="bg-secondary bg-opacity-25 rounded p-3 small border border-secondary">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-white-50">Host / Container ID:</span>
+                        <code class="text-info fw-bold">@Model.RuntimeInfo.MachineOrContainerName</code>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-white-50">Hệ điều hành:</span>
+                        <span class="text-end">@Model.RuntimeInfo.OsDescription</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-white-50">Framework:</span>
+                        <span>@Model.RuntimeInfo.FrameworkDescription</span>
+                    </div>
+                    <div class="d-grid gap-2 d-sm-flex justify-content-sm-end mt-2">
+                        <a asp-action="DockerGuide" class="btn btn-sm btn-info fw-semibold">🐳 Học nhanh Docker</a>
+                        <a href="/health" target="_blank" class="btn btn-sm btn-outline-light">🩺 Xem JSON /health</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sơ đồ Luồng CI/CD Production -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5 fw-bold mb-3">🔄 Toàn cảnh Luồng CI/CD Production chúng ta sẽ xây dựng</h2>
+        <div class="row g-2 text-center small">
+            <div class="col-md-2">
+                <div class="p-3 rounded bg-primary bg-opacity-10 border border-primary h-100">
+                    <div class="fw-bold text-primary mb-1">1. Git Push / PR</div>
+                    <div class="text-muted">Nhánh feature/* hoặc main trên GitHub</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="p-3 rounded bg-success bg-opacity-10 border border-success h-100">
+                    <div class="fw-bold text-success mb-1">2. CI Build &amp; Test</div>
+                    <div class="text-muted">Restore, Build &amp; chạy xUnit Test tự động</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="p-3 rounded bg-warning bg-opacity-10 border border-warning h-100">
+                    <div class="fw-bold text-dark mb-1">3. Quality &amp; Security</div>
+                    <div class="text-muted">Quét lỗ hổng NuGet &amp; kiểm tra chuẩn code</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="p-3 rounded bg-info bg-opacity-10 border border-info h-100">
+                    <div class="fw-bold text-dark mb-1">4. Docker Build</div>
+                    <div class="text-muted">Đóng gói Multi-stage Image siêu nhẹ</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="p-3 rounded bg-secondary bg-opacity-10 border border-secondary h-100">
+                    <div class="fw-bold text-secondary mb-1">5. Push Registry</div>
+                    <div class="text-muted">Lưu trữ Image lên GitHub Container Registry</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="p-3 rounded bg-danger bg-opacity-10 border border-danger h-100">
+                    <div class="fw-bold text-danger mb-1">6. CD &amp; Smoke Test</div>
+                    <div class="text-muted">Deploy Docker, gọi /health &amp; Auto Rollback</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Danh sách 6 Bước Học & Thực Hành -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 fw-bold mb-0">📚 Giáo Trình Thực Hành Từng Bước (6 Modules)</h2>
+    <span class="text-muted small">Bấm vào từng bước để xem chi tiết lý thuyết, câu lệnh mẫu và checklist</span>
+</div>
+
+<div class="row g-4">
+    @foreach (var module in Model.Modules)
+    {
+        <div class="col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-@module.BadgeColor">Bước @module.StepNumber: @module.BadgeText</span>
+                        <span class="text-muted small">@module.ProductionChecklist.Count mục thực hành</span>
+                    </div>
+                    <h3 class="h5 fw-bold">
+                        <a asp-action="Module" asp-route-id="@module.Id" class="text-decoration-none text-dark">
+                            @module.Title
+                        </a>
+                    </h3>
+                    <p class="text-muted small mb-2 fw-semibold">@module.Subtitle</p>
+                    <p class="card-text small text-secondary flex-grow-1">@module.Summary</p>
+
+                    <div class="bg-light rounded p-2 mb-3 small border-start border-4 border-@module.BadgeColor">
+                        <strong>So với cách cũ (Bonobo/Jenkins/IIS):</strong>
+                        <div class="text-muted mt-1">@module.OldWayVsNewWay</div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-auto pt-2 border-top">
+                        <span class="small text-muted">@module.PracticalCommands.Count khối lệnh thực hành</span>
+                        <a asp-action="Module" asp-route-id="@module.Id" class="btn btn-sm btn-outline-primary fw-semibold">
+                            Xem bài học &amp; Thực hành &rarr;
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
