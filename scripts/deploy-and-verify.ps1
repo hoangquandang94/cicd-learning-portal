@@ -25,7 +25,11 @@ $env:APP_VERSION = $VersionTag
 $env:IMAGE_NAME = $ImageName
 
 Write-Host "🐳 Đang đóng gói và khởi chạy Container mới..." -ForegroundColor Cyan
-docker compose up -d --build
+docker compose up -d --build --force-recreate
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Lỗi khi chạy docker compose up!" -ForegroundColor Red
+    exit $LASTEXITCODE
+}
 
 # 3. Thực hiện Smoke Test (Gọi thử vào /health xem web có sống và trả về Healthy không)
 Write-Host "🩺 Đang thực hiện Smoke Test tại: $HealthUrl ..." -ForegroundColor Cyan
